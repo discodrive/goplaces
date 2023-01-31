@@ -6,8 +6,8 @@ import (
 
 // Place represents data about a location
 type Place struct {
-	ID       uuid.UUID
-	Location string
+	ID       uuid.UUID `json:"id"`
+	Location string    `json:"location"`
 }
 
 func NewPlace(location string) *Place {
