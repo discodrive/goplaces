@@ -34,6 +34,21 @@ func NewPostgresStore() (*PostgresStore, error) {
 	}, nil
 }
 
+func (s *PostgresStore) Init() error {
+	return s.createPlaceTable()
+}
+
+func (s *PostgresStore) createPlaceTable() error {
+	query := `create table if not exists place (
+		id serial primary key,
+		location varchar(50),
+		created_at timestamp
+	)`
+
+	_, err := s.db.Exec(query)
+	return err
+}
+
 // TODO build out PostgresStore methods
 func (s *PostgresStore) CreatePlace(*Place) error {
 	return nil
