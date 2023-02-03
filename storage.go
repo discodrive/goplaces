@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -10,6 +11,7 @@ type Storage interface {
 	CreatePlace(*Place) error
 	DeletePlace(int) error
 	UpdatePlace(*Place) error
+	GetPlaces() ([]*Place, error)
 	GetPlaceByID(int) (*Place, error)
 }
 
@@ -34,8 +36,36 @@ func NewPostgresStore() (*PostgresStore, error) {
 	}, nil
 }
 
+func (s *PostgresStore) Init() error {
+	return s.createPlaceTable()
+}
+
+func (s *PostgresStore) createPlaceTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS place (
+		id serial primary key,
+		location varchar(50),
+		name varchar(50),
+		created_at timestamp
+	)`
+
+	_, err := s.db.Exec(query)
+	return err
+}
+
 // TODO build out PostgresStore methods
-func (s *PostgresStore) CreatePlace(*Place) error {
+func (s *PostgresStore) CreatePlace(place *Place) error {
+	sqlStatement := `
+	INSERT INTO place (location, name, created_at)
+	VALUES ($1, $2, $3)`
+
+	resp, err := s.db.Exec(sqlStatement, place.Name, place.Location, place.CreatedAt)
+
+	fmt.Println(resp)
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -49,4 +79,25 @@ func (s *PostgresStore) UpdatePlace(*Place) error {
 
 func (s *PostgresStore) GetPlaceByID(id int) (*Place, error) {
 	return nil, nil
+}
+
+func (s *PostgresStore) GetPlaces() ([]*Place, error) {
+	rows, err := s.db.Query("SELECT * FROM place")
+	if err != nil {
+		return nil, err
+	}
+
+	places := []*Place{}
+	for rows.Next() {
+		place := new(Place)
+		err := rows.Scan(&place.ID, &place.Location, &place.Name, &place.CreatedAt)
+
+		if err != nil {
+			return nil, err
+		}
+
+		places = append(places, place)
+	}
+
+	return places, nil
 }

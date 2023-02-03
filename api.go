@@ -24,7 +24,9 @@ func NewAPIServer(listenerAddr string, store Storage) *APIServer {
 
 func (s *APIServer) Run() {
 	r := mux.NewRouter()
+
 	r.HandleFunc("/places", makeHTTPHandlerFunc(s.handlePlace))
+	r.HandleFunc("/place/{id}", makeHTTPHandlerFunc(s.handleGetPlaceByID))
 
 	log.Printf("Server is running on port %v", s.listenerAddr)
 
@@ -34,23 +36,43 @@ func (s *APIServer) Run() {
 func (s *APIServer) handlePlace(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case "GET":
-		return s.handleGetPlace(w, r)
+		return s.handleGetPlaces(w, r)
 	case "POST":
-		return s.handlePostPlace(w, r)
+		return s.handleCreatePlace(w, r)
 	case "DELETE":
 		return s.handleDeletePlace(w, r)
 	}
 	return fmt.Errorf("Unsupported method %s", r.Method)
 }
 
-func (s *APIServer) handleGetPlace(w http.ResponseWriter, r *http.Request) error {
-	place := NewPlace("Leamington Spa")
+func (s *APIServer) handleGetPlaces(w http.ResponseWriter, r *http.Request) error {
+	places, err := s.store.GetPlaces()
+	if err != nil {
+		return err
+	}
 
-	return WriteJSON(w, http.StatusOK, place)
+	return WriteJSON(w, http.StatusOK, places)
 }
 
-func (s *APIServer) handlePostPlace(w http.ResponseWriter, r *http.Request) error {
-	return nil
+func (s *APIServer) handleGetPlaceByID(w http.ResponseWriter, r *http.Request) error {
+	id := mux.Vars(r)["id"]
+	fmt.Println(id)
+
+	return WriteJSON(w, http.StatusOK, &Place{})
+}
+
+func (s *APIServer) handleCreatePlace(w http.ResponseWriter, r *http.Request) error {
+	createPlaceReq := new(CreatePlaceRequest)
+	if err := json.NewDecoder(r.Body).Decode(createPlaceReq); err != nil {
+		return err
+	}
+
+	place := NewPlace(createPlaceReq.Location, createPlaceReq.Name)
+	if err := s.store.CreatePlace(place); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, place)
 }
 
 func (s *APIServer) handleDeletePlace(w http.ResponseWriter, r *http.Request) error {
