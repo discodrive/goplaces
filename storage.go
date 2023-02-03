@@ -59,7 +59,7 @@ func (s *PostgresStore) CreatePlace(place *Place) error {
 	INSERT INTO place (location, name, created_at)
 	VALUES ($1, $2, $3)`
 
-	resp, err := s.db.Exec(sqlStatement, place.Name, place.Location, place.CreatedAt)
+	resp, err := s.db.Exec(sqlStatement, place.Location, place.Name, place.CreatedAt)
 
 	fmt.Println(resp)
 
