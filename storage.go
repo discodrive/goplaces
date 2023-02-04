@@ -70,7 +70,9 @@ func (s *PostgresStore) CreatePlace(place *Place) error {
 }
 
 func (s *PostgresStore) DeletePlace(id int) error {
-	return nil
+	// TODO In production it would be better to soft delete - flag as deleted and make unavailable via the API
+	_, err := s.db.Query("DELETE FROM place WHERE id = $1", id)
+	return err
 }
 
 func (s *PostgresStore) UpdatePlace(*Place) error {
@@ -78,7 +80,14 @@ func (s *PostgresStore) UpdatePlace(*Place) error {
 }
 
 func (s *PostgresStore) GetPlaceByID(id int) (*Place, error) {
-	return nil, nil
+	rows, err := s.db.Query("SELECT * FROM place WHERE id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		return scanIntoPlace(rows)
+	}
+	return nil, fmt.Errorf("Place %d not found", id)
 }
 
 func (s *PostgresStore) GetPlaces() ([]*Place, error) {
@@ -89,15 +98,19 @@ func (s *PostgresStore) GetPlaces() ([]*Place, error) {
 
 	places := []*Place{}
 	for rows.Next() {
-		place := new(Place)
-		err := rows.Scan(&place.ID, &place.Location, &place.Name, &place.CreatedAt)
-
+		place, err := scanIntoPlace(rows)
 		if err != nil {
 			return nil, err
 		}
-
 		places = append(places, place)
 	}
 
 	return places, nil
+}
+
+func scanIntoPlace(rows *sql.Rows) (*Place, error) {
+	place := new(Place)
+	err := rows.Scan(&place.ID, &place.Location, &place.Name, &place.CreatedAt)
+
+	return place, err
 }
