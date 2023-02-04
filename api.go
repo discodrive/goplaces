@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -26,7 +27,7 @@ func (s *APIServer) Run() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/places", makeHTTPHandlerFunc(s.handlePlace))
-	r.HandleFunc("/place/{id}", makeHTTPHandlerFunc(s.handleGetPlaceByID))
+	r.HandleFunc("/places/{id}", makeHTTPHandlerFunc(s.handleGetPlaceByID))
 
 	log.Printf("Server is running on port %v", s.listenerAddr)
 
@@ -39,8 +40,6 @@ func (s *APIServer) handlePlace(w http.ResponseWriter, r *http.Request) error {
 		return s.handleGetPlaces(w, r)
 	case "POST":
 		return s.handleCreatePlace(w, r)
-	case "DELETE":
-		return s.handleDeletePlace(w, r)
 	}
 	return fmt.Errorf("Unsupported method %s", r.Method)
 }
@@ -55,10 +54,25 @@ func (s *APIServer) handleGetPlaces(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (s *APIServer) handleGetPlaceByID(w http.ResponseWriter, r *http.Request) error {
-	id := mux.Vars(r)["id"]
-	fmt.Println(id)
+	if r.Method == "GET" {
+		id, err := getID(r)
+		if err != nil {
+			return err
+		}
 
-	return WriteJSON(w, http.StatusOK, &Place{})
+		place, err := s.store.GetPlaceByID(id)
+		if err != nil {
+			return err
+		}
+
+		return WriteJSON(w, http.StatusOK, place)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleDeletePlace(w, r)
+	}
+
+	return fmt.Errorf("Method %s not allowed", r.Method)
 }
 
 func (s *APIServer) handleCreatePlace(w http.ResponseWriter, r *http.Request) error {
@@ -76,7 +90,15 @@ func (s *APIServer) handleCreatePlace(w http.ResponseWriter, r *http.Request) er
 }
 
 func (s *APIServer) handleDeletePlace(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.store.DeletePlace(id); err != nil {
+		return err
+	}
+	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
@@ -89,7 +111,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 type APIFunc func(http.ResponseWriter, *http.Request) error
 
 type APIError struct {
-	Error string
+	Error string `json:"error"`
 }
 
 // makeHTTPHandlerFunc is a decorator for our API functions to turn them into http handlers
@@ -99,4 +121,15 @@ func makeHTTPHandlerFunc(f APIFunc) http.HandlerFunc {
 			WriteJSON(w, http.StatusBadRequest, APIError{Error: err.Error()})
 		}
 	}
+}
+
+func getID(r *http.Request) (int, error) {
+	// Fetch the ID from the request param as a string and convert it to int
+	idStr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		// Return our own friendly error rather than the JSON Atoi error which isn't as helpful
+		return id, fmt.Errorf("ID %s is not valid.", idStr)
+	}
+	return id, nil
 }
