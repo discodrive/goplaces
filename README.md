@@ -6,5 +6,5 @@ As a learning exercise this API doesn't use Gin or many other Go packages and in
 
 ## Endpoints
 
-`/places`
-Returns a list of all places
+`/places` Returns a list of all places
+`/places/{id}` 

@@ -3,7 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -20,8 +23,12 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	// TODO set up envvars for database connection
-	connStr := "user=postgres dbname=postgres password=goplaces sslmode=disable"
+	err := godotenv.Load("local.env")
+	if err != nil {
+		log.Fatalf("An error occured. Err: %s", err)
+	}
+
+	connStr := fmt.Sprintf("user=%s dbname=%s password=%s sslmode=disable", os.Getenv("DB_USER"), os.Getenv("DB_NAME"), os.Getenv("DB_PASSWORD"))
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -53,7 +60,6 @@ func (s *PostgresStore) createPlaceTable() error {
 	return err
 }
 
-// TODO build out PostgresStore methods
 func (s *PostgresStore) CreatePlace(place *Place) error {
 	sqlStatement := `
 	INSERT INTO place (location, name, created_at)
@@ -75,6 +81,7 @@ func (s *PostgresStore) DeletePlace(id int) error {
 	return err
 }
 
+// TODO build UpdatePlace function
 func (s *PostgresStore) UpdatePlace(*Place) error {
 	return nil
 }
